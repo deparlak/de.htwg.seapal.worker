@@ -30,23 +30,12 @@ var worker = function (config, callback) {
        // console.log(res);
         console.log(res.headers['set-cookie'][0]);
         
-        db = new PouchDB(DATABASE_ADDRESS, { headers: {'Cookie' : res.headers['set-cookie'][0]} });
+        db = new PouchDB(config.address.syncGateway, { headers: {'Cookie' : res.headers['set-cookie'][0]} });
         console.log('database loaded');
         
-        method();
+        callback();
     });
-
-    var method = function() {
-        db.changes({since : 'now', live : true})
-            .on('change', function (info) {
-                console.log(info);
-            }).on('complete', function (info) {
-                console.log(info);
-            }).on('error', function (err) {
-                console.log(err);
-        });
-    };
-
+    
     // write request
     req.write(data);
     req.end();

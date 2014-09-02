@@ -13,7 +13,6 @@
   ],
   "author"      : "seapal",
   "dependencies": {
-      "nconf"       : ">= 0.6.9",
       "querystring" : "0.2.0",
       "pouchdb"     : "3.0.3"
     }
