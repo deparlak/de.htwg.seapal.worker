@@ -13,7 +13,7 @@
   ],
   "author"      : "seapal",
   "dependencies": {
-      "querystring" : "0.2.0",
+      "request"     : "2.4.0",
       "pouchdb"     : "3.0.3"
     }
 }

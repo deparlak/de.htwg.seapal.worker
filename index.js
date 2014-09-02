@@ -1,66 +1,59 @@
-var querystring = require('querystring');
-var http = require('http');
+var request = require("request");
 var PouchDB = require('pouchdb');
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
 
-var worker = function (config) {
+var Worker = function (config, fn) {
     // reference to this
-    var self = this;
+    this.config = config;
+    this.db = null;
     
     if ( !config
-      || !config.user || !config.user.username || !config.user.password
-      || !config.user || !config.user.username || !config.user.password
-      || !config.server || !config.server.host || !config.server.port || !config.server.path
-      || !config.syncGateway
+      || !config.user || !config.user.email || !config.user.password
+      || !config.loginUrl
+      || !config.logoutUrl
+      || !config.syncGatewayUrl
     ) {
-        self.emit('error', 'invalid configuration!');
+        fn('invalid configuration!');
+    } else {
+        // set http request to login server
+        request({
+            uri     : config.loginUrl,
+            method  : "POST",
+            form    : {
+                email       : config.user.email,
+                password    : config.user.password
+            }
+        }, function(error, response, body) {    
+            if (error) {
+                self.emit('error', error);
+            } else if (!response || !response.headers) {
+                self.emit('error', 'response headers not available.');
+            } else if (!response.headers['set-cookie']) {
+                self.emit('error', 'response set-cookie not available.');
+            } else if (-1 != response.headers['set-cookie'][0].indexOf('errors')) {
+                self.emit('error', response.headers['set-cookie']);
+            } else {
+                // open database connection with PouchDB
+                this.db = new PouchDB(config.syncGatewayUrl, { headers: {'Cookie' : response.headers['set-cookie'][0]} });
+                // callback with no error and database handle
+                fn(undefined, this.db);
+            }
+        });
     }
-    
-    this.on('newListener', function(listener) {
-
-    });
-    
-    // create data package to send for login
-    var data = querystring.stringify({
-          email     : config.user.username,
-          password  : config.user.password
-    });
-
-    // set options for login
-    var options = {
-        host    : config.server.host,
-        port    : config.server.port,
-        path    : config.server.path,
-        method  : 'POST',
-        headers : 
-        {
-            'Content-Type'      :   'application/x-www-form-urlencoded',
-            'Content-Length'    :   Buffer.byteLength(data)
-        }
-    };
-
-    // handle for the database, which will be opened with pouchdb
-    var db;
-
-    // set http request to login server
-    var req = http.request(options, function(res) {
-        if (!res.headers['set-cookie']) {
-            self.emit('error', 'login failed');
-            return;
-        }
-  
-        db = new PouchDB(config.syncGateway, { headers: {'Cookie' : res.headers['set-cookie'][0]} });
-
-        self.emit('open', db); 
-    });
-    
-    // write request
-    req.write(data);
-    req.end();
 };
 
-// extend the EventEmitter class using our Radio class
-util.inherits(worker, EventEmitter);
+Worker.prototype.close = function () {
+    this.db = null;
+    
+    // set http request to login server
+    request({
+        uri     : this.config.logoutUrl,
+        method  : "GET",
+    }, function(error, response, body) {
+        if (error) {
+            console.log(error);
+        }
+    });
+}
+
 // export module
-module.exports = worker;
+module.exports = Worker;
