@@ -8,13 +8,17 @@ var Worker = function (server, user, fn) {
     self.user = user;
     self.db = null;
     
+    var returnError = function (msg) {
+        fn("Login with " + JSON.stringify(self, undefined, 2) + " failed with Error: "+msg);
+    };
+    
     if ( !server
       || !server.loginUrl
       || !server.logoutUrl
       || !server.syncGatewayUrl
       || !user || !user.email || !user.password
     ) {
-        fn('invalid configuration!');
+        error('invalid configuration!');
     } else {
         // set http request to login server
         request({
@@ -24,15 +28,15 @@ var Worker = function (server, user, fn) {
                 email       : self.user.email,
                 password    : self.user.password
             }
-        }, function(error, response, body) {    
+        }, function(error, response, body) {
             if (error) {
-                fn(error);
+                returnError(error);
             } else if (!response || !response.headers) {
-                fn('response headers not available.');
+                returnError("response headers not available.");
             } else if (!response.headers['set-cookie']) {
-                fn('response set-cookie not available.');
+                returnError("response set-cookie not available.");
             } else if (-1 != response.headers['set-cookie'][0].indexOf('errors')) {
-                fn(response.headers['set-cookie']);
+                returnError(response.headers['set-cookie']);
             } else {
                 // open database connection with PouchDB
                 self.db = new PouchDB(self.server.syncGatewayUrl, { headers: {'Cookie' : response.headers['set-cookie'][0]} });
