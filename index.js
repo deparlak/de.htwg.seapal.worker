@@ -3,9 +3,10 @@ var PouchDB = require('pouchdb');
 
 var Worker = function (server, user, fn) {
     // reference to this
-    this.server = server;
-    this.user = user;
-    this.db = null;
+    self = this;
+    self.server = server;
+    self.user = user;
+    self.db = null;
     
     if ( !server
       || !server.loginUrl
@@ -20,8 +21,8 @@ var Worker = function (server, user, fn) {
             uri     : server.loginUrl,
             method  : "POST",
             form    : {
-                email       : this.user.email,
-                password    : this.user.password
+                email       : self.user.email,
+                password    : self.user.password
             }
         }, function(error, response, body) {    
             if (error) {
@@ -34,20 +35,20 @@ var Worker = function (server, user, fn) {
                 fn(response.headers['set-cookie']);
             } else {
                 // open database connection with PouchDB
-                this.db = new PouchDB(this.server.syncGatewayUrl, { headers: {'Cookie' : response.headers['set-cookie'][0]} });
+                self.db = new PouchDB(self.server.syncGatewayUrl, { headers: {'Cookie' : response.headers['set-cookie'][0]} });
                 // callback with no error and database handle
-                fn(undefined, this.db);
+                fn(undefined, self.db);
             }
         });
     }
 };
 
 Worker.prototype.close = function () {
-    this.db = null;
+    self.db = null;
     
     // set http request to login server
     request({
-        uri     : this.server.logoutUrl,
+        uri     : self.server.logoutUrl,
         method  : "GET",
     }, function(error, response, body) {
         if (error) {
