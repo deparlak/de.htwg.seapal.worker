@@ -1,39 +1,40 @@
 var request = require("request");
 var PouchDB = require('pouchdb');
 
-var Worker = function (config, fn) {
+var Worker = function (server, user, fn) {
     // reference to this
-    this.config = config;
+    this.server = server;
+    this.user = user;
     this.db = null;
     
-    if ( !config
-      || !config.user || !config.user.email || !config.user.password
-      || !config.loginUrl
-      || !config.logoutUrl
-      || !config.syncGatewayUrl
+    if ( !server
+      || !server.loginUrl
+      || !server.logoutUrl
+      || !server.syncGatewayUrl
+      || !user || !user.email || !user.password
     ) {
         fn('invalid configuration!');
     } else {
         // set http request to login server
         request({
-            uri     : config.loginUrl,
+            uri     : server.loginUrl,
             method  : "POST",
             form    : {
-                email       : config.user.email,
-                password    : config.user.password
+                email       : this.user.email,
+                password    : this.user.password
             }
         }, function(error, response, body) {    
             if (error) {
-                self.emit('error', error);
+                fn(error);
             } else if (!response || !response.headers) {
-                self.emit('error', 'response headers not available.');
+                fn('response headers not available.');
             } else if (!response.headers['set-cookie']) {
-                self.emit('error', 'response set-cookie not available.');
+                fn('response set-cookie not available.');
             } else if (-1 != response.headers['set-cookie'][0].indexOf('errors')) {
-                self.emit('error', response.headers['set-cookie']);
+                fn(response.headers['set-cookie']);
             } else {
                 // open database connection with PouchDB
-                this.db = new PouchDB(config.syncGatewayUrl, { headers: {'Cookie' : response.headers['set-cookie'][0]} });
+                this.db = new PouchDB(this.server.syncGatewayUrl, { headers: {'Cookie' : response.headers['set-cookie'][0]} });
                 // callback with no error and database handle
                 fn(undefined, this.db);
             }
@@ -46,7 +47,7 @@ Worker.prototype.close = function () {
     
     // set http request to login server
     request({
-        uri     : this.config.logoutUrl,
+        uri     : this.server.logoutUrl,
         method  : "GET",
     }, function(error, response, body) {
         if (error) {
